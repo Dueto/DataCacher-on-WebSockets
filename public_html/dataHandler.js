@@ -4,12 +4,12 @@
     { 
         var me = {};  
         
-        me.dataLevel = [{level: 'Year', aggregator: '-01-01T00:00:00.000000', window: 31536000},
-                        {level: 'Month', aggregator: '-01T00:00:00.000000', window: 2592000},
-                        {level: 'Day', aggregator: 'T00:00:00.000000', window: 86400},                        
-                        {level: 'Hour', aggregator: ':00:00.000000', window: 3600},                         
-                        {level: 'Min', aggregator: ':00.000000', window: 60},      
-                        {level: 'Sec', aggregator: '.000000', window: 1},
+        me.dataLevel = [{level: 'Year', aggregator: '-01-01T00:00:00.000000', window: 315360000},
+                        {level: 'Month', aggregator: '-01T00:00:00.000000', window: 31536000},
+                        {level: 'Day', aggregator: 'T00:00:00.000000', window: 2592000},                        
+                        {level: 'Hour', aggregator: ':00:00.000000', window: 86400},                         
+                        {level: 'Min', aggregator: ':00.000000', window: 3600},      
+                        {level: 'Sec', aggregator: '.000000', window: 60},
                         {level: 'Milisec', aggregator: '', window: 0}];
         
         me.parseData = function(strData)
@@ -75,19 +75,21 @@
             } 
         };
         
-         me.getDataLevel = function(window)
+         me.getDataLevel = function(pointCount ,window)
         {   
-            if(window < 31536000)
+            var diffrence = window.split('-')[1] - window.split('-')[0];
+            var multiplier = diffrence/pointCount;            
+            if(multiplier < 315360000)
             {
-                if(window < 2592000)
+                if(multiplier < 31536000)
                 {
-                    if(window < 86400)
+                    if(multiplier < 2592000)
                     {
-                        if(window < 3600)
+                        if(multiplier < 86400)
                         {
-                            if(window < 60)
+                            if(multiplier < 3600)
                             {
-                                if(window < 1)
+                                if(multiplier < 60)
                                 {
                                     return this.dataLevel[6];
                                 }

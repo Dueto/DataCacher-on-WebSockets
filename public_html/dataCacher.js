@@ -24,7 +24,7 @@
                               db_group,
                               db_mask,
                               window,
-                              aggregator,
+                              pointCount,
                               onEndCallBack,
                               onEndCallBackAll)
         {
@@ -32,7 +32,7 @@
           self.clientsCallback = onEndCallBack; 
           self.clientsCallbackAll = onEndCallBackAll;          
           db_mask = db_mask.split(',');
-          var level = self.dataHandl.getDataLevel(aggregator);
+          var level = self.dataHandl.getDataLevel(pointCount, window);
           
           if(self.dateHelper.checkWindowFormat(window))
           {
@@ -47,10 +47,9 @@
                    {         
                       if(results.rows.length == 0)
                       {  
-                          var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, aggregator);                          
+                          var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level.window);                          
                           self.webSocket.setOnMessageHandler(function(msg)
-                          {   
-                                //var csv = new csvReader(msg.data);
+                          {                                   
                                 var objData = self.dataHandl.parseData(msg.data);
                                 if (objData.label != undefined) 
                                 {        
@@ -81,8 +80,8 @@
                                 }
                                 else
                                 {      
-                                     self.clientsCallback(null);
-                                     console.log('There is no data in server responces.');                                         
+                                     self.clientsCallback(msg.data);
+                                     throw ('There is no data in server responces.');                                         
                                 }                               
 
                           });
@@ -198,15 +197,13 @@
                                                                                                  }
                                                                                                  else
                                                                                                  {
-                                                                                                     onEndCallBack(null);
-                                                                                                     console.log('There is no data in server responses.');
+                                                                                                     self.onEmptyData('No response.');
                                                                                                  }
                                                                                              });      
                                                                      }       
                                                                      else
                                                                      {
-                                                                         onEndCallBack(null);
-                                                                         console.log('There is no data in server responses.');
+                                                                         self.onEmptyData('No response.')
                                                                      }
                                                                  });
                                         }
@@ -285,8 +282,7 @@
                 }
                 else
                 {      
-                    onEndCallBack(null);            
-                    console.log('There is no data in server responces.');                                         
+                    self.onEmptyData(msg.data);                                        
                 }    
             }); 
             
@@ -310,8 +306,7 @@
             var self = this;
             var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
             self.webSocket.setOnMessageHandler(function(msg)
-            {    
-                //var csv = new csvReader(msg.data);
+            {   
                 var objData = self.dataHandl.parseData(msg.data);
                 if (objData.label != undefined) 
                 {   
@@ -328,8 +323,7 @@
                 }
                 else
                 {      
-                    onEndCallBack(null);
-                    console.log('There is no data in server responces.');                                         
+                    self.onEmptyData(msg.data);                                     
                 }    
              });  
              
@@ -352,8 +346,7 @@
             var self = this;
             var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
             self.webSocket.setOnMessageHandler(function(msg)
-            {    
-                //var csv = new csvReader(msg.data);
+            {  
                 var objData = self.dataHandl.parseData(msg.data);
                 if (objData.label != undefined) 
                 {   
@@ -363,8 +356,7 @@
                 }
                 else
                 {      
-                    onEndCallBack(null);                    
-                    console.log('There is no data in server responces.');                                         
+                    self.onEmptyData(msg.data);                                         
                 }    
             }); 
             
@@ -460,6 +452,12 @@
         {
             console.log( 'Executing SQL completed.' );
         };
+        
+        me.onEmptyData = function(msg)
+        {
+            this.clientsCallback(msg);
+            throw ('There is no data in server responses');
+        }
         
        me.formURL = function(db_server, db_name, db_group, db_mask, window, level)
         {
