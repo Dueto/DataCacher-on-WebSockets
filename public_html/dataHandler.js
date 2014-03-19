@@ -4,8 +4,6 @@
     { 
         var me = {};  
         
-        me.dateHelper = new dateTimeFormat();
-        
         me.dataLevel = [{level: 'Year', aggregator: '-01-01T00:00:00.000000', window: 31536000},
                         {level: 'Month', aggregator: '-01T00:00:00.000000', window: 2592000},
                         {level: 'Day', aggregator: 'T00:00:00.000000', window: 86400},                        
@@ -65,7 +63,7 @@
                 k++;
             }
             
-            return {data: allData,dateTime: dateTime,label: labels, };
+            return {data: allData,dateTime: dateTime,label: labels};
         };
         
         me.concatRowData = function(res, dataBuffer, dateTime)
@@ -158,6 +156,8 @@
                 return dateTime;
             }
         };
+        
+        
         
         return me;
             

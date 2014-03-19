@@ -29,29 +29,33 @@ module("class DataCacher");
                       ok(true, "Ok");  
                       start();
                   }
- 	});
+ 	},
+        function(data)
+        {
+            console.log(data);
+        });
  });
  
-  asyncTest("CheckGettingData", 1 , function() { 	
-        var DataCacher = new dataCacher();        
- 	DataCacher.getData("autogen", "hourly", "default", "0", "1363096123-1363355323", 86400, function(data) {
-                     console.log(data); 
-                      if(data !== null && data.data.length == 4)
-                      {                                               
-                        ok(true, "Ok");  
-                        start();
-                      }
-                      else 
-                      {
-                          ok(false, "Object is null or count isn't equal.");
-                          start();
-                      }
-
-
-
- 	});
- });
- 
+//  asyncTest("CheckGettingData", 1 , function() { 	
+//        var DataCacher = new dataCacher();        
+// 	DataCacher.getData("autogen", "hourly", "default", "0", "1363096123-1363355323", 86400, function(data) {
+//                     console.log(data); 
+//                      if(data !== null && data.data.length == 4)
+//                      {                                               
+//                        ok(true, "Ok");  
+//                        start();
+//                      }
+//                      else 
+//                      {
+//                          ok(false, "Object is null or count isn't equal.");
+//                          start();
+//                      }
+//
+//
+//
+// 	});
+// });
+// 
 //   asyncTest("CheckDataLeftLength", 1 , function() { 	
 //        DataCacher = new dataCacher();        
 // 	DataCacher.getData("autogen", "minutely", "default", "0", "1363185095-1363357895", 3600, function(data) {
@@ -111,47 +115,47 @@ module("class DataCacher");
 //
 // 	});
 // });
- 
-     asyncTest("CheckDataMoreLength", 1 , function() { 	
-        var DataCacher = new dataCacher();        
- 	DataCacher.getData("autogen", "hourly", "default", "0", "1363009723-1363614523", 86400, function(data) {
-                      console.log(data);
-                      if(data !== null && data.data.length == 8)
-                      {   
-                          ok(true, "Ok");  
-                          start();
-                      }
-                      else 
-                      {
-                          ok(false, "Object is null or count isn't equal.");
-                          start();
-                      }
-
-
-
- 	});
- });
- 
-asyncTest("CheckDataInsideLength", 1 , function() { 	
-        var DataCacher = new dataCacher();        
- 	DataCacher.getData("autogen", "hourly", "default", "0", "1363182523-1363268923", 86400, function(data) {
-                      console.log(data);
-                      if(data !== null && data.data.length == 2)
-                      {   
-                          ok(true, "Ok");  
-                          start();
-                      }
-                      else 
-                      {
-                          ok(false, "Object is null or count isn't equal.");
-                          start();
-                      }
-
-
-
- 	});
- });
- 
+// 
+//     asyncTest("CheckDataMoreLength", 1 , function() { 	
+//        var DataCacher = new dataCacher();        
+// 	DataCacher.getData("autogen", "hourly", "default", "0", "1363009723-1363614523", 86400, function(data) {
+//                      console.log(data);
+//                      if(data !== null && data.data.length == 8)
+//                      {   
+//                          ok(true, "Ok");  
+//                          start();
+//                      }
+//                      else 
+//                      {
+//                          ok(false, "Object is null or count isn't equal.");
+//                          start();
+//                      }
+//
+//
+//
+// 	});
+// });
+// 
+//asyncTest("CheckDataInsideLength", 1 , function() { 	
+//        var DataCacher = new dataCacher();        
+// 	DataCacher.getData("autogen", "hourly", "default", "0", "1363182523-1363268923", 86400, function(data) {
+//                      console.log(data);
+//                      if(data !== null && data.data.length == 2)
+//                      {   
+//                          ok(true, "Ok");  
+//                          start();
+//                      }
+//                      else 
+//                      {
+//                          ok(false, "Object is null or count isn't equal.");
+//                          start();
+//                      }
+//
+//
+//
+// 	});
+// });
+// 
 // 
 // 
 // asyncTest("CheckWorkWithMilliseconds", 1 , function() { 	

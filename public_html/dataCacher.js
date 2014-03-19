@@ -9,8 +9,10 @@
         me.dataHandl = new dataHandler();
         me.dateHelper = new dateTimeFormat();
         me.clientsCallback = '';
+        me.clientsCallbackAll = '';
+      
         
-        
+        me.allData = {data: [], dateTime: [], label: []};
         
         me.onopen = function()
         {
@@ -23,10 +25,12 @@
                               db_mask,
                               window,
                               aggregator,
-                              onEndCallBack)
+                              onEndCallBack,
+                              onEndCallBackAll)
         {
           var self = this;
-          self.clientsCallback = onEndCallBack;          
+          self.clientsCallback = onEndCallBack; 
+          self.clientsCallbackAll = onEndCallBackAll;          
           db_mask = db_mask.split(',');
           var level = self.dataHandl.getDataLevel(aggregator);
           
@@ -43,7 +47,7 @@
                    {         
                       if(results.rows.length == 0)
                       {  
-                          var stringToSend = db_server + ';' + db_name + ';' + db_group + ';' + db_mask[count] + ';' + window + ';mean;'  + aggregator;                          
+                          var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, aggregator);                          
                           self.webSocket.setOnMessageHandler(function(msg)
                           {   
                                 //var csv = new csvReader(msg.data);
@@ -51,6 +55,7 @@
                                 if (objData.label != undefined) 
                                 {        
                                        self.clientsCallback(objData);
+                                       self.concatData(objData);
                                        self.db.transaction(function(req)
                                        {
                                            var idDataSource;
@@ -114,6 +119,7 @@
                                         {                                       
                                             var label = results.rows.item(0).channellabel;
                                             self.clientsCallback({data: dataBuffer, dateTime: dateTime, label: label});
+                                            self.concatData({data: dataBuffer, dateTime: dateTime, label: label});
                                         }
                                         
                                         if(returnedBeginTime > beginTime && returnedEndTime == endTime)
@@ -188,6 +194,7 @@
                                                                                                  objLeftData.data = objLeftData.data.concat(objRightData.data);
                                                                                                  objLeftData.dateTime = objLeftData.dateTime.concat(objRightData.dateTime);
                                                                                                  onEndCallBack(objLeftData);
+                                                                                                 self.continue(objLeftData);
                                                                                                  }
                                                                                                  else
                                                                                                  {
@@ -253,7 +260,7 @@
                                         onEndCallBack)
         {
             var self = this;
-            var stringToSend = db_server + ';' + db_name + ';' + db_group + ';' + db_mask + ';' + window + ';mean;'  + level;             
+            var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
             self.webSocket.setOnMessageHandler(function(msg)
             {    
                 //var csv = new csvReader(msg.data);
@@ -273,6 +280,7 @@
                         objData.dateTime = dateTime;
 
                         onEndCallBack(objData);
+                        self.concatData(objData);
                    
                 }
                 else
@@ -300,7 +308,7 @@
                                         onEndCallBack)
         {
             var self = this;
-            var stringToSend = db_server + ';' + db_name + ';' + db_group + ';' + db_mask + ';' + window + ';mean;'  + level;             
+            var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
             self.webSocket.setOnMessageHandler(function(msg)
             {    
                 //var csv = new csvReader(msg.data);
@@ -316,6 +324,7 @@
                     objData.dateTime = objData.dateTime.concat(dateTime);
 
                     onEndCallBack(objData);
+                    self.concatData(objData);
                 }
                 else
                 {      
@@ -341,7 +350,7 @@
                                        onEndCallBack)
         {
             var self = this;
-            var stringToSend = db_server + ';' + db_name + ';' + db_group + ';' + db_mask + ';' + window + ';mean;'  + level;             
+            var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
             self.webSocket.setOnMessageHandler(function(msg)
             {    
                 //var csv = new csvReader(msg.data);
@@ -349,6 +358,7 @@
                 if (objData.label != undefined) 
                 {   
                     onEndCallBack(objData);
+                    self.concatData(objData);
                     self.insertData(objData, idDataSource);
                 }
                 else
@@ -359,6 +369,14 @@
             }); 
             
             self.webSocket.sendMessage(stringToSend);
+        };
+        
+        me.concatData = function(objData)
+        {
+            this.allData.dateTime = objData.dateTime;
+            this.allData.data.push(objData.data);
+            this.allData.label.push(objData.label);
+            this.clientsCallbackAll(this.allData);
         };
         
         
@@ -394,18 +412,18 @@
 
         me.formDataBase = function()
         {            
-                this.db.transaction(function (req)
-                {
-                    req.executeSql('CREATE TABLE IF NOT EXISTS DataSource (id INTEGER PRIMARY KEY AUTOINCREMENT,\n\
-                                                                             db_server,\n\
-                                                                             db_name,\n\
-                                                                             db_group,\n\
-                                                                             db_mask,\n\
-                                                                             channellabel)'); 
-                }, 
-                this.onError,
-                this.onReadyTransaction);
-            };
+            this.db.transaction(function (req)
+            {
+                req.executeSql('CREATE TABLE IF NOT EXISTS DataSource (id INTEGER PRIMARY KEY AUTOINCREMENT,\n\
+                                                                         db_server,\n\
+                                                                         db_name,\n\
+                                                                         db_group,\n\
+                                                                         db_mask,\n\
+                                                                         channellabel)'); 
+            }, 
+            this.onError,
+            this.onReadyTransaction);
+        };
 
         me.insertData = function(objData, idDataSource)
         {   
@@ -443,7 +461,7 @@
             console.log( 'Executing SQL completed.' );
         };
         
-       /* function formURL(db_server, db_name, db_group, db_mask, window, level)
+       me.formURL = function(db_server, db_name, db_group, db_mask, window, level)
         {
             var url = 'http://localhost/adei-branch/adei/services/getdata.php?db_server=' + db_server 
                     + '&db_name=' + db_name
@@ -453,7 +471,7 @@
                     + '&window=' + level 
                     + '&format=csv';                        
             return url; 
-        }*/
+        };
         
         
         
