@@ -6,6 +6,8 @@
         
         me.socket = '';
         me.host = host;
+        me.callbacks = [];
+        me.currentCallback = 0;
         
         me.openSocket = function()
         {
@@ -57,6 +59,35 @@
             this.socket.close();
         };
           
+        me.addCallback = function(callback)
+        {           
+            this.callbacks.push(callback);
+        };
+        
+        me.getCallbacks = function ()
+        {
+            return this.callbacks;
+        };
+        
+        me.nextCallback = function()
+        {
+            this.currentCallback++;            
+            if(this.currentCallback == this.callbacks.length)
+            {
+                this.currentCallback = 0;
+            }
+            this.setOnMessageHandler(this.callbacks[this.currentCallback]);
+        };
+        
+        me.flushCallbacks = function()
+        {
+            this.callbacks = [];
+            this.currentCallback = 0;            
+        };
+        
+
+        
+        
  
             return me;
     };
@@ -67,3 +98,4 @@
     
 
 })(window);
+

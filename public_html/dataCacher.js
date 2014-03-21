@@ -5,15 +5,12 @@
         var me = {};
         
         me.db = '';
-        me.webSocket = new webSockets('ws://localhost:12345/webSockets/index.php');
+        me.webSocket = new webSockets('wss://localhost:12345/ADEI/ADEIWS/runsockets.php');
         me.dataHandl = new dataHandler();
         me.dateHelper = new dateTimeFormat();
         me.request = new reqObject();
         me.clientsCallback = '';
-        me.clientsCallbackAll = '';
-      
-        
-        me.allData = {data: [], dateTime: [], label: []};
+        me.messageCount = 0;
         
         me.onopen = function()
         {
@@ -31,12 +28,17 @@
         {
           var self = this;
           self.clientsCallback = onEndCallBack; 
-          self.clientsCallbackAll = onEndCallBackAll; 
           
           self.request.setDbServer(db_server);
           self.request.setDbName(db_name);
           self.request.setDbGroup(db_group);
           self.request.setDbMask(db_mask.split(',')); 
+          
+          self.messageCount = 0;          
+          self.webSocket.flushCallbacks();          
+          self.dataHandl.flushData();
+          self.dataHandl.setClientsCallback(onEndCallBackAll);
+          self.dataHandl.setChannelCount(self.request.getChannelCount());
           
           var level = self.dataHandl.getDataLevel(pointCount, window);
           
@@ -44,57 +46,16 @@
           {
                 self.db.transaction(function(req)
                 { 
-                   for (var g = 0; g < self.request.getDbMask().length; g++) 
+                   self.request.getDbMask().forEach(function(db_item, index, ar)
                    {  
                       req.executeSql('SELECT * FROM DataSource WHERE db_server = "' + self.request.getDbServer() + '" AND \n\
                                                                   db_name = "' + self.request.getDbName() + '" AND \n\
                                                                   db_group = "' + self.request.getDbGroup() + '" AND \n\
-                                                                  db_mask = "' + self.request.getDbItem(g) + '"', [], function(count){ return function (req, results)
+                                                                  db_mask = "' + db_item + '"', [], function(count){ return function (req, results)
                    {         
                       if(results.rows.length == 0)
                       {  
-                          var stringToSend = self.formURL(self.request.getDbServer(), self.request.getDbName(), self.request.getDbGroup(), self.request.getDbItem(count), window, level.window);                             
-                          self.webSocket.setOnMessageHandler(function(msg)
-                          {               
-                                var objData = self.dataHandl.parseData(msg.data);
-                                if (objData.label != undefined) 
-                                {        
-                                       self.clientsCallback(objData);
-                                       self.concatData(objData);
-                                       self.db.transaction(function(req)
-                                       {
-                                           var idDataSource;
-                                           req.executeSql('INSERT INTO DataSource (db_server, db_name, db_group, db_mask, channellabel ) VALUES ("' + self.request.getDbServer() + '","' 
-                                                                                          + self.request.getDbName() + '","'
-                                                                                          + self.request.getDbGroup() + '","'
-                                                                                          + self.request.getDbItem(count) + '", "' 
-                                                                                          + objData.label + '")');
-                                           req.executeSql('SELECT id FROM DataSource WHERE db_server = "' + self.request.getDbServer() + '" AND \n\
-                                                                     db_name = "' + self.request.getDbName() + '" AND \n\
-                                                                     db_group = "' + self.request.getDbGroup() + '" AND \n\
-                                                                     db_mask = "' + self.request.getDbItem(count) + '"', [], function (req, results)
-                                           {         
-                                               idDataSource = results.rows.item(0).id;
-                                               req.executeSql('CREATE TABLE IF NOT EXISTS "' + idDataSource + '" (DateTime NOT NULL UNIQUE, PointData)');
-                                               req.executeSql('CREATE INDEX IF NOT EXISTS DateTimeIndex ON "' + idDataSource + '" (DateTime)');  
-                                               for (var p = 0; p < objData.dateTime.length; p++) 
-                                               {                         
-                                                   req.executeSql('INSERT OR REPLACE INTO "' + idDataSource + '" (DateTime, PointData) ' + 'VALUES ' + '("' + objData.dateTime[p] + '",' + objData.data[p] + ')');                                                
-                                               }  
-
-
-                                           });
-                                       },
-                                       self.onError,
-                                       self.onReadyTransaction);
-                                }                                
-                                else
-                                {      
-                                     self.clientsCallback(msg.data);
-                                     throw ('There is no data in server responces.');                                         
-                                }    
-                          });
-                          self.webSocket.sendMessage(stringToSend);                          
+                          self.requestAllData(count, level.window, window);
                       }               
                       else
                       { 
@@ -127,7 +88,7 @@
                                         {                                       
                                             var label = results.rows.item(0).channellabel;
                                             self.clientsCallback({data: dataBuffer, dateTime: dateTime, label: label});
-                                            self.concatData({data: dataBuffer, dateTime: dateTime, label: label});
+                                            self.dataHandl.concatData({data: dataBuffer, dateTime: dateTime, label: label});
                                         }
                                         
                                         if(returnedBeginTime > beginTime && returnedEndTime == endTime)
@@ -136,10 +97,7 @@
                                             var e = Date.parse(returnedBeginTime)/1000;
                                             var needenTime = b + '-' + e; 
                                             
-                                            self.requestLeftData(db_server, 
-                                                                 db_name, 
-                                                                 db_group, 
-                                                                 db_mask[count], 
+                                            self.requestLeftData(count, 
                                                                  needenTime,
                                                                  level.window,
                                                                  idDataSource,
@@ -154,10 +112,7 @@
                                             var b = Date.parse(returnedEndTime)/1000;
                                             var needenTime = b + '-' + e;
                                             
-                                            self.requestRightData(db_server, 
-                                                                 db_name, 
-                                                                 db_group, 
-                                                                 db_mask[count], 
+                                            self.requestRightData(count, 
                                                                  needenTime,
                                                                  level.window,
                                                                  idDataSource,
@@ -173,10 +128,7 @@
                                             var needenTime1 = b + '-' + Date.parse(endTime)/1000;
                                             var needenTime2 = (Date.parse(beginTime)/1000) + '-' + e;
                                             
-                                            self.requestRightData(db_server, 
-                                                                 db_name, 
-                                                                 db_group, 
-                                                                 db_mask[count], 
+                                            self.requestRightData(count, 
                                                                  needenTime1,
                                                                  level.window,
                                                                  idDataSource,
@@ -186,10 +138,7 @@
                                                                  {
                                                                      if(objRightData != null)
                                                                      {
-                                                                        self.requestLeftData(db_server, 
-                                                                                             db_name, 
-                                                                                             db_group, 
-                                                                                             db_mask[count], 
+                                                                        self.requestLeftData(count, 
                                                                                              needenTime2,
                                                                                              level.window,
                                                                                              idDataSource,
@@ -199,10 +148,10 @@
                                                                                              {
                                                                                                  if(objLeftData != null)
                                                                                                  {
-                                                                                                 objLeftData.data = objLeftData.data.concat(objRightData.data);
-                                                                                                 objLeftData.dateTime = objLeftData.dateTime.concat(objRightData.dateTime);
-                                                                                                 onEndCallBack(objLeftData);
-                                                                                                 self.continue(objLeftData);
+                                                                                                    objLeftData.data = objLeftData.data.concat(objRightData.data);
+                                                                                                    objLeftData.dateTime = objLeftData.dateTime.concat(objRightData.dateTime);
+                                                                                                    onEndCallBack(objLeftData);
+                                                                                                    self.continue(objLeftData);
                                                                                                  }
                                                                                                  else
                                                                                                  {
@@ -212,17 +161,14 @@
                                                                      }       
                                                                      else
                                                                      {
-                                                                         self.onEmptyData('No response.')
+                                                                         self.onEmptyData('No response.');
                                                                      }
                                                                  });
                                         }
                                   }
                                   else
                                   {
-                                       self.insertNeedenData(db_server,
-                                                            db_name,
-                                                            db_group,
-                                                            db_mask[count],
+                                       self.insertNeedenData(count,
                                                             window,
                                                             level.window,
                                                             idDataSource,
@@ -231,15 +177,12 @@
                               };}(counter));
                           },
                           self.onError,
-                          self.onReadyTransaction);
-                          
-                                                                         
-
+                          self.onReadyTransaction);   
                       }
                       
                    };
-               }(g) ); 
-               }}, 
+               }(index) ); 
+               });}, 
                 this.onError,
                 this.onReadyTransaction);
           }
@@ -247,17 +190,55 @@
           {
               console.log('Bad window format.');
           }
-        };    
+        };
         
-        
+        me.requestAllData = function(index, level, window)
+        {
+            var self = this;
+            var stringToSend = self.formURL(self.request.getDbServer(), self.request.getDbName(), self.request.getDbGroup(), self.request.getDbItem(index), window, level);    
+            self.webSocket.addCallback(function(i){ return function(msg)
+            {      
+                var objData = self.dataHandl.parseData(msg.data);
+                if (objData.label != undefined) 
+                {        
+                       self.clientsCallback(objData);
+                       self.dataHandl.concatData(objData);
+                       self.db.transaction(function(req)
+                       {
+                           var idDataSource;
+                           req.executeSql('INSERT INTO DataSource (db_server, db_name, db_group, db_mask, channellabel ) VALUES ("' + self.request.getDbServer() + '","' 
+                                                                          + self.request.getDbName() + '","'
+                                                                          + self.request.getDbGroup() + '","'
+                                                                          + self.request.getDbItem(i) + '", "' 
+                                                                          + objData.label + '")');
+                           req.executeSql('SELECT id FROM DataSource WHERE db_server = "' + self.request.getDbServer() + '" AND \n\
+                                                     db_name = "' + self.request.getDbName() + '" AND \n\
+                                                     db_group = "' + self.request.getDbGroup() + '" AND \n\
+                                                     db_mask = "' + self.request.getDbItem(i) + '"', [], function (req, results)
+                           {         
+                               idDataSource = results.rows.item(0).id;
+                               req.executeSql('CREATE TABLE IF NOT EXISTS "' + idDataSource + '" (DateTime NOT NULL UNIQUE, PointData)');
+                               req.executeSql('CREATE INDEX IF NOT EXISTS DateTimeIndex ON "' + idDataSource + '" (DateTime)');  
+                               for (var p = 0; p < objData.dateTime.length; p++) 
+                               {                         
+                                   req.executeSql('INSERT OR REPLACE INTO "' + idDataSource + '" (DateTime, PointData) ' + 'VALUES ' + '("' + objData.dateTime[p] + '",' + objData.data[p] + ')');                                                
+                               }  
 
-        
-        
 
-         me.requestRightData = function(db_server,
-                                        db_name,
-                                        db_group,
-                                        db_mask,
+                           });                       
+                       },
+                       self.onError,
+                       self.onReadyTransaction);
+                }                                
+                else
+                {      
+                     self.onEmptyData(msg.data);                                      
+                }
+            };}(index));              
+            self.webSocket.sendMessage(stringToSend);    
+        }; 
+
+        me.requestRightData = function(count,
                                         window,
                                         level,
                                         idDataSource,
@@ -266,10 +247,9 @@
                                         onEndCallBack)
         {
             var self = this;
-            var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
-            self.webSocket.setOnMessageHandler(function(msg)
-            {    
-                //var csv = new csvReader(msg.data);
+            var stringToSend = self.formURL(self.request.getDbServer(), self.request.getDbName(), self.request.getDbGroup(), self.request.getDbItem(count), window, level);                
+            self.webSocket.addCallback(function(msg)
+            {   
                 var objData = self.dataHandl.parseData(msg.data);
                 if (objData.label != undefined) 
                 { 
@@ -286,7 +266,7 @@
                         objData.dateTime = dateTime;
 
                         onEndCallBack(objData);
-                        self.concatData(objData);
+                        self.dataHandl.concatData(objData);
                    
                 }
                 else
@@ -299,12 +279,48 @@
             
         };
         
+        me.insertAllData = function(index, msg)
+        {          
+            var self = this;            
+            var objData = self.dataHandl.parseData(msg.data);
+            if (objData.label != undefined) 
+            {        
+                   self.clientsCallback(objData);
+                   self.dataHandl.concatData(objData);
+                   self.db.transaction(function(req)
+                   {
+                       var idDataSource;
+                       req.executeSql('INSERT INTO DataSource (db_server, db_name, db_group, db_mask, channellabel ) VALUES ("' + self.request.getDbServer() + '","' 
+                                                                      + self.request.getDbName() + '","'
+                                                                      + self.request.getDbGroup() + '","'
+                                                                      + self.request.getDbItem(index) + '", "' 
+                                                                      + objData.label + '")');
+                       req.executeSql('SELECT id FROM DataSource WHERE db_server = "' + self.request.getDbServer() + '" AND \n\
+                                                 db_name = "' + self.request.getDbName() + '" AND \n\
+                                                 db_group = "' + self.request.getDbGroup() + '" AND \n\
+                                                 db_mask = "' + self.request.getDbItem(index) + '"', [], function (req, results)
+                       {         
+                           idDataSource = results.rows.item(0).id;
+                           req.executeSql('CREATE TABLE IF NOT EXISTS "' + idDataSource + '" (DateTime NOT NULL UNIQUE, PointData)');
+                           req.executeSql('CREATE INDEX IF NOT EXISTS DateTimeIndex ON "' + idDataSource + '" (DateTime)');  
+                           for (var p = 0; p < objData.dateTime.length; p++) 
+                           {                         
+                               req.executeSql('INSERT OR REPLACE INTO "' + idDataSource + '" (DateTime, PointData) ' + 'VALUES ' + '("' + objData.dateTime[p] + '",' + objData.data[p] + ')');                                                
+                           }  
+
+
+                       });                       
+                   },
+                   self.onError,
+                   self.onReadyTransaction);
+            }                                
+            else
+            {      
+                 self.onEmptyData(msg.data);                                      
+            }    
+        };
         
-        
-        me.requestLeftData = function(db_server,
-                                        db_name,
-                                        db_group,
-                                        db_mask,
+        me.requestLeftData = function(count,
                                         window,
                                         level,
                                         idDataSource,
@@ -313,9 +329,9 @@
                                         onEndCallBack)
         {
             var self = this;
-            var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
-            self.webSocket.setOnMessageHandler(function(msg)
-            {   
+            var stringToSend = self.formURL(self.request.getDbServer(), self.request.getDbName(), self.request.getDbGroup(), self.request.getDbItem(count), window, level);                
+            self.webSocket.addCallback(function(msg)
+            {  
                 var objData = self.dataHandl.parseData(msg.data);
                 if (objData.label != undefined) 
                 {   
@@ -328,7 +344,7 @@
                     objData.dateTime = objData.dateTime.concat(dateTime);
 
                     onEndCallBack(objData);
-                    self.concatData(objData);
+                    self.dataHandl.concatData(objData);
                 }
                 else
                 {      
@@ -336,31 +352,27 @@
                 }    
              });  
              
-             self.webSocket.sendMessage(stringToSend);
-            
+             self.webSocket.sendMessage(stringToSend);            
         };
         
 
      
                                
-        me.insertNeedenData = function(db_server,
-                                       db_name,
-                                       db_group,
-                                       db_mask,
+        me.insertNeedenData = function(count,
                                        window,
                                        level,
                                        idDataSource,
                                        onEndCallBack)
         {
             var self = this;
-            var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level);                
-            self.webSocket.setOnMessageHandler(function(msg)
-            {  
+            var stringToSend = self.formURL(self.request.getDbServer(), self.request.getDbName(), self.request.getDbGroup(), self.request.getDbItem(count), window, level);                
+            self.webSocket.addCallback(function(msg)
+            {                  
                 var objData = self.dataHandl.parseData(msg.data);
                 if (objData.label != undefined) 
                 {   
                     onEndCallBack(objData);
-                    self.concatData(objData);
+                    self.dataHandl.concatData(objData);
                     self.insertData(objData, idDataSource);
                 }
                 else
@@ -372,17 +384,7 @@
             self.webSocket.sendMessage(stringToSend);
         };
         
-        me.concatData = function(objData)
-        {
-            this.allData.dateTime = objData.dateTime;
-            this.allData.data.push(objData.data);
-            this.allData.label.push(objData.label);
-            this.clientsCallbackAll(this.allData);
-        };
-        
-        
-        
-        
+  
         me.onOpenSocket = function(msg)
         {
             console.log('Socket opened.');
@@ -395,7 +397,7 @@
         
         me.onMessageSocket = function(msg)
         {
-                
+             
         };
         
         me.onCloseSocket = function(msg)
@@ -486,7 +488,11 @@
         me.formDataBase(); 
         
         me.webSocket.setOnOpenHandler(me.onOpenSocket);
-        me.webSocket.setOnMessageHandler(me.onMessageSocket);
+        me.webSocket.setOnMessageHandler(function(msg)
+            {
+                me.webSocket.getCallbacks()[me.messageCount](msg);
+                me.messageCount++;                
+            });
         me.webSocket.setOnCloseHandler(me.onCloseSocket); 
         me.webSocket.setOnErrorHandler(me.onErrorSocket);
         me.webSocket.openSocket();

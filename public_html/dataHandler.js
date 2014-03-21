@@ -11,6 +11,20 @@
                         {level: 'Min', aggregator: ':00.000000', window: 60},      
                         {level: 'Sec', aggregator: '.000000', window: 1},
                         {level: 'Milisec', aggregator: '', window: 0}];
+        me.clientsCallback = '';        
+        me.allData = {data: [], dateTime: [], label: []};
+        me.channelCount = '';
+        me.currentChannel = 0;
+        
+        me.setClientsCallback = function(_clientsCallback)
+        {
+            this.clientsCallback = _clientsCallback;
+        };
+        
+        me.setChannelCount = function(_channelCount)
+        {
+            this.channelCount = _channelCount;
+        };
         
         me.parseData = function(strData)
         {
@@ -135,7 +149,25 @@
             return formatedData;
         };
         
+        me.concatData = function(objData)
+        {
+            this.allData.dateTime = objData.dateTime;
+            this.allData.data.push(objData.data);
+            this.allData.label.push(objData.label);
+            this.currentChannel++;
+            if(this.currentChannel == this.channelCount)
+            {
+                this.clientsCallback(this.allData);
+            }                   
+        };
         
+        me.flushData = function()
+        {
+            this.clientsCallback = '';        
+            this.allData = {data: [], dateTime: [], label: []};
+            this.channelCount = '';
+            this.currentChannel = 0;
+        };
         
         return me;
             

@@ -20,7 +20,7 @@ module("class DataCacher");
  asyncTest("CheckChannelCount", 1 , function() { 	
         DataCacher = new dataCacher();
         var count = 0;
- 	DataCacher.getData("autogen", "hourly", "default", "0,1,2,3,4", "1262333419-1275379819", 100, function(data) 
+ 	DataCacher.getData("autogen", "hourly", "default", "0,1,2,3,4", "1262333419-1275379819", 500, function(data) 
         {
                   console.log(data);
                   count++;                  

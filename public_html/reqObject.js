@@ -10,6 +10,7 @@
         me.db_mask = '';
         me.currentItem = 0;
         
+        
         me.setDbServer = function(db_server)
         {
             this.db_server = db_server;
@@ -55,8 +56,29 @@
             return this.db_mask[number];
         };
         
+        me.getChannelCount = function()
+        {
+            return this.db_mask.length;
+        };
+        
+        me.getCurrentItem = function()
+        {
+            return this.db_mask[this.currentItem];
+        };
+        
+        me.nextItem = function()
+        {
+            this.currentItem++;
+            if(this.currentItem == this.db_mask.length)
+            {
+                this.currentItem = 0;
+            }
+        };
+        
+        
         
 
+        
         
         return me;
             
