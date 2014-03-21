@@ -4,12 +4,12 @@
     { 
         var me = {};  
         
-        me.dataLevel = [{level: 'Year', aggregator: '-01-01T00:00:00.000000', window: 315360000},
-                        {level: 'Month', aggregator: '-01T00:00:00.000000', window: 31536000},
-                        {level: 'Day', aggregator: 'T00:00:00.000000', window: 2592000},                        
-                        {level: 'Hour', aggregator: ':00:00.000000', window: 86400},                         
-                        {level: 'Min', aggregator: ':00.000000', window: 3600},      
-                        {level: 'Sec', aggregator: '.000000', window: 60},
+        me.dataLevel = [{level: 'Year', aggregator: '-01-01T00:00:00.000000', window: 31536000},
+                        {level: 'Month', aggregator: '-01T00:00:00.000000', window: 2592000},
+                        {level: 'Day', aggregator: 'T00:00:00.000000', window: 86400},                        
+                        {level: 'Hour', aggregator: ':00:00.000000', window: 3600},                         
+                        {level: 'Min', aggregator: ':00.000000', window: 60},      
+                        {level: 'Sec', aggregator: '.000000', window: 1},
                         {level: 'Milisec', aggregator: '', window: 0}];
         
         me.parseData = function(strData)
@@ -68,7 +68,7 @@
         
         me.concatRowData = function(res, dataBuffer, dateTime)
         {                                   
-            for (k = 0; k < res.rows.length; k++) 
+            for (var k = 0; k < res.rows.length; k++) 
             {                                      
                 dataBuffer.push(res.rows.item(k).PointData);   
                 dateTime.push(res.rows.item(k).DateTime);                                       
@@ -79,17 +79,17 @@
         {   
             var diffrence = window.split('-')[1] - window.split('-')[0];
             var multiplier = diffrence/pointCount;            
-            if(multiplier < 315360000)
+            if(multiplier < 31536000)
             {
-                if(multiplier < 31536000)
+                if(multiplier < 2592000)
                 {
-                    if(multiplier < 2592000)
+                    if(multiplier < 86400)
                     {
-                        if(multiplier < 86400)
+                        if(multiplier < 3600)
                         {
-                            if(multiplier < 3600)
+                            if(multiplier < 60)
                             {
-                                if(multiplier < 60)
+                                if(multiplier < 1)
                                 {
                                     return this.dataLevel[6];
                                 }
@@ -129,34 +129,10 @@
         
         me.formatUnixData = function(dateTime, dataLevel)
         {
-            if(dataLevel.level == 'Year')
-            {
-                return dateTime.substring(0,4) + dataLevel.aggregator;
-            }
-            if(dataLevel.level == 'Month')
-            {
-                return dateTime.substring(0,7) + dataLevel.aggregator;
-            }
-            if(dataLevel.level == 'Day')
-            {
-                return dateTime.substring(0,10) + dataLevel.aggregator;
-            }
-            if(dataLevel.level == 'Hour')
-            {
-                return dateTime.substring(0,13) + dataLevel.aggregator;
-            }
-            if(dataLevel.level == 'Min')
-            {
-                return dateTime.substring(0,16) + dataLevel.aggregator;
-            }
-            if(dataLevel.level == 'Sec')
-            {
-                return dateTime.substring(0,19) + dataLevel.aggregator;
-            }
-            if(dataLevel.level == 'Milisec')
-            {
-                return dateTime;
-            }
+            var aggregatorLen = dataLevel.aggregator.length;
+            var dateTimeLen = dateTime.length;
+            var formatedData = (dateTime.substring(0, dateTimeLen - aggregatorLen) + dataLevel.aggregator);
+            return formatedData;
         };
         
         

@@ -4,10 +4,11 @@
     { 
         var me = {};
         
-        me.db = ''; 
+        me.db = '';
         me.webSocket = new webSockets('ws://localhost:12345/webSockets/index.php');
         me.dataHandl = new dataHandler();
         me.dateHelper = new dateTimeFormat();
+        me.request = new reqObject();
         me.clientsCallback = '';
         me.clientsCallbackAll = '';
       
@@ -30,26 +31,31 @@
         {
           var self = this;
           self.clientsCallback = onEndCallBack; 
-          self.clientsCallbackAll = onEndCallBackAll;          
-          db_mask = db_mask.split(',');
+          self.clientsCallbackAll = onEndCallBackAll; 
+          
+          self.request.setDbServer(db_server);
+          self.request.setDbName(db_name);
+          self.request.setDbGroup(db_group);
+          self.request.setDbMask(db_mask.split(',')); 
+          
           var level = self.dataHandl.getDataLevel(pointCount, window);
           
           if(self.dateHelper.checkWindowFormat(window))
           {
                 self.db.transaction(function(req)
                 { 
-                   for (g = 0; g < db_mask.length; g++) 
+                   for (var g = 0; g < self.request.getDbMask().length; g++) 
                    {  
-                      req.executeSql('SELECT * FROM DataSource WHERE db_server = "' + db_server + '" AND \n\
-                                                                  db_name = "' + db_name + '" AND \n\
-                                                                  db_group = "' + db_group + '" AND \n\
-                                                                  db_mask = "' + db_mask[g] + '"', [], function(count){ return function (req, results)
+                      req.executeSql('SELECT * FROM DataSource WHERE db_server = "' + self.request.getDbServer() + '" AND \n\
+                                                                  db_name = "' + self.request.getDbName() + '" AND \n\
+                                                                  db_group = "' + self.request.getDbGroup() + '" AND \n\
+                                                                  db_mask = "' + self.request.getDbItem(g) + '"', [], function(count){ return function (req, results)
                    {         
                       if(results.rows.length == 0)
                       {  
-                          var stringToSend = self.formURL(db_server, db_name, db_group, db_mask, window, level.window);                          
+                          var stringToSend = self.formURL(self.request.getDbServer(), self.request.getDbName(), self.request.getDbGroup(), self.request.getDbItem(count), window, level.window);                             
                           self.webSocket.setOnMessageHandler(function(msg)
-                          {                                   
+                          {               
                                 var objData = self.dataHandl.parseData(msg.data);
                                 if (objData.label != undefined) 
                                 {        
@@ -58,16 +64,20 @@
                                        self.db.transaction(function(req)
                                        {
                                            var idDataSource;
-                                           req.executeSql('INSERT INTO DataSource (db_server, db_name, db_group, db_mask, channellabel ) VALUES ("' + db_server + '","' + db_name + '","' + db_group + '","' + db_mask[count] + '", "' + objData.label + '")');
-                                           req.executeSql('SELECT id FROM DataSource WHERE db_server = "' + db_server + '" AND \n\
-                                                                     db_name = "' + db_name + '" AND \n\
-                                                                     db_group = "' + db_group + '" AND \n\
-                                                                     db_mask = "' + db_mask[count] + '"', [], function (req, results)
+                                           req.executeSql('INSERT INTO DataSource (db_server, db_name, db_group, db_mask, channellabel ) VALUES ("' + self.request.getDbServer() + '","' 
+                                                                                          + self.request.getDbName() + '","'
+                                                                                          + self.request.getDbGroup() + '","'
+                                                                                          + self.request.getDbItem(count) + '", "' 
+                                                                                          + objData.label + '")');
+                                           req.executeSql('SELECT id FROM DataSource WHERE db_server = "' + self.request.getDbServer() + '" AND \n\
+                                                                     db_name = "' + self.request.getDbName() + '" AND \n\
+                                                                     db_group = "' + self.request.getDbGroup() + '" AND \n\
+                                                                     db_mask = "' + self.request.getDbItem(count) + '"', [], function (req, results)
                                            {         
                                                idDataSource = results.rows.item(0).id;
                                                req.executeSql('CREATE TABLE IF NOT EXISTS "' + idDataSource + '" (DateTime NOT NULL UNIQUE, PointData)');
                                                req.executeSql('CREATE INDEX IF NOT EXISTS DateTimeIndex ON "' + idDataSource + '" (DateTime)');  
-                                               for (p = 0; p < objData.dateTime.length; p++) 
+                                               for (var p = 0; p < objData.dateTime.length; p++) 
                                                {                         
                                                    req.executeSql('INSERT OR REPLACE INTO "' + idDataSource + '" (DateTime, PointData) ' + 'VALUES ' + '("' + objData.dateTime[p] + '",' + objData.data[p] + ')');                                                
                                                }  
@@ -77,15 +87,14 @@
                                        },
                                        self.onError,
                                        self.onReadyTransaction);
-                                }
+                                }                                
                                 else
                                 {      
                                      self.clientsCallback(msg.data);
                                      throw ('There is no data in server responces.');                                         
-                                }                               
-
+                                }    
                           });
-                          self.webSocket.sendMessage(stringToSend);
+                          self.webSocket.sendMessage(stringToSend);                          
                       }               
                       else
                       { 
@@ -422,7 +431,7 @@
             var self = this;
                     self.db.transaction(function(req)
                     {                        
-                        for (i = 0; i < objData.dateTime.length; i++) 
+                        for (var i = 0; i < objData.dateTime.length; i++) 
                         {                               
                             req.executeSql('INSERT OR REPLACE INTO "' + idDataSource + '" (DateTime, PointData) ' + 'VALUES ' + '("' + objData.dateTime[i] + '",' + objData.data[i] + ')', [], function(req,res)
                             {                                
